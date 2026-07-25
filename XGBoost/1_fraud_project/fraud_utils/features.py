@@ -136,7 +136,22 @@ def prepare_features(
     null_threshold: float = 0.9,
     repeated_threshold: float = 0.9,
 ) -> PreparedFraudData:
-    """Build the Kaggle-style feature matrix used by both LightGBM and XGBoost."""
+    """_summary_
+
+    Args:
+        train (pd.DataFrame): _description_
+        test (pd.DataFrame): _description_
+        drop_useless (bool, optional): _description_. Defaults to True.
+        fill_value (int | float, optional): _description_. Defaults to -999.
+        null_threshold (float, optional): _description_. Defaults to 0.9.
+        repeated_threshold (float, optional): _description_. Defaults to 0.9.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        PreparedFraudData: _description_
+    """
     if "isFraud" not in train.columns:
         raise ValueError("train must include the isFraud target column.")
 
