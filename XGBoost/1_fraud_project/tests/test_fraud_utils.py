@@ -136,6 +136,72 @@ class FraudUtilsTest(unittest.TestCase):
 
         self.assertEqual(selected, ["TransactionAmt", "a", "b", "c"])
 
+    def test_amount_aggregates_by_time_use_only_past_rows(self) -> None:
+        from fraud_utils.features import add_transaction_amount_aggregates_by_time
+
+        train = pd.DataFrame(
+            {
+                "TransactionDT": [100, 200, 300],
+                "TransactionAmt": [10.0, 20.0, 30.0],
+                "card1": ["A", "A", "B"],
+            },
+            index=pd.Index([1, 2, 3], name="TransactionID"),
+        )
+        test = pd.DataFrame(
+            {
+                "TransactionDT": [400, 500],
+                "TransactionAmt": [40.0, 50.0],
+                "card1": ["A", "A"],
+            },
+            index=pd.Index([4, 5], name="TransactionID"),
+        )
+
+        out_train, out_test = add_transaction_amount_aggregates_by_time(
+            train,
+            test,
+            group_columns=("card1",),
+        )
+
+        self.assertTrue(np.isnan(out_train.loc[1, "card1_TransactionAmt_hist_mean"]))
+        self.assertTrue(np.isclose(out_train.loc[2, "card1_TransactionAmt_hist_mean"], 10.0))
+        self.assertTrue(np.isnan(out_train.loc[3, "card1_TransactionAmt_hist_mean"]))
+        self.assertTrue(np.isclose(out_test.loc[4, "card1_TransactionAmt_hist_mean"], 15.0))
+        self.assertTrue(
+            np.isclose(out_test.loc[5, "card1_TransactionAmt_hist_mean"], 70.0 / 3.0)
+        )
+        self.assertTrue(
+            np.isclose(out_test.loc[4, "card1_TransactionAmt_hist_std"], np.sqrt(50.0))
+        )
+        self.assertTrue(np.isclose(out_train.loc[1, "TransactionAmt"], np.log1p(10.0)))
+
+    def test_browser_features_parse_family_version_and_past_frequency(self) -> None:
+        from fraud_utils.features import add_browser_features_enriched
+
+        train = pd.DataFrame(
+            {
+                "TransactionDT": [100, 200, 300],
+                "id_31": ["chrome 69.0", "chrome 69.0", "firefox 60.0"],
+            },
+            index=pd.Index([1, 2, 3], name="TransactionID"),
+        )
+        test = pd.DataFrame(
+            {
+                "TransactionDT": [400],
+                "id_31": ["chrome 69.0"],
+            },
+            index=pd.Index([4], name="TransactionID"),
+        )
+
+        out_train, out_test = add_browser_features_enriched(train, test)
+
+        self.assertEqual(out_train.loc[1, "browser_family"], "chrome")
+        self.assertEqual(out_train.loc[3, "browser_family"], "firefox")
+        self.assertTrue(np.isclose(out_train.loc[1, "browser_version"], 69.0))
+        self.assertEqual(int(out_train.loc[1, "browser_fq_enc"]), 0)
+        self.assertEqual(int(out_train.loc[2, "browser_fq_enc"]), 1)
+        self.assertEqual(int(out_test.loc[4, "browser_fq_enc"]), 2)
+        self.assertEqual(int(out_train.loc[1, "lastest_browser"]), 1)
+
 
 def _minimal_ieee_frame(
     transaction_ids: list[int],

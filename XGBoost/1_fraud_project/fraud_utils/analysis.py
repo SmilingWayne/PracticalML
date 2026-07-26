@@ -35,6 +35,8 @@ def feature_group(feature: str) -> str:
         return "email"
     if feature in {"DeviceInfo", "device_name", "had_id"} or feature.startswith("Device"):
         return "device"
+    if feature in {"lastest_browser", "browser_family", "browser_version", "browser_fq_enc"}:
+        return "browser"
     if feature.startswith("DT_"):
         return "time"
     if feature.endswith("_fq_enc"):
